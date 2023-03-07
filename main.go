@@ -1,7 +1,11 @@
 package main
 
 import (
+	"bufio"
+	"fmt"
+	"io/ioutil"
 	"log"
+	"os"
 
 	"github.com/sirupsen/logrus"
 	"github.com/yitsushi/go-misskey"
@@ -11,21 +15,51 @@ import (
 )
 
 func main() {
-	client, _ := misskey.NewClientWithOptions(misskey.WithSimpleConfig("https://misskey.io", "20ef5DpyUy4RoTCMP3H2h7qX5hCRtET5"))
+	fmt.Print("[*] server-address:")
+	address := Input()
+	fmt.Print("[*] token(filename):")
+	fn := Input()
+	token := Readfile(fn)
+
+	client, _ := misskey.NewClientWithOptions(misskey.WithSimpleConfig(address, token))
 	client.LogLevel(logrus.DebugLevel)
 
-	response, err := client.Notes().Create(notes.CreateRequest{
-		Text:       core.NewString("test"),
-		Visibility: models.VisibilityHome,
-		Poll: &notes.Poll{
-			Choices: []string{"a", "b", "c"},
-		},
-	})
-	if err != nil {
-		log.Printf("[Notes] Error happened: %s", err)
+	content := ""
+	for {
+		content = Input()
+		response, err := client.Notes().Create(notes.CreateRequest{
+			Text:       core.NewString(content),
+			Visibility: models.VisibilityHome,
+		})
+		if err != nil {
+			log.Printf("[Notes] Error happened: %s", err)
+			return
+		}
 
-		return
+		if content == "" {
+			return
+		}
+
+		log.Println(response.CreatedNote.ID)
 	}
+}
 
-	log.Println(response.CreatedNote.ID)
+func Input() string {
+	scanner := bufio.NewScanner(os.Stdin)
+	scanner.Scan()
+	return scanner.Text()
+}
+
+func Readfile(fn string) string {
+	f, err := os.Open(fn)
+	if err != nil {
+		log.Println("error")
+	}
+	defer f.Close()
+
+	c, err := ioutil.ReadAll(f)
+	if err != nil {
+		log.Println("error")
+	}
+	return string(c)
 }
